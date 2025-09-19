@@ -11,7 +11,7 @@ This guide explains how to deploy your Django project to a Fedora VPS using Cadd
 sudo dnf update -y
 
 # Install required packages
-sudo dnf install -y python3 python3-pip python3-virtualenv postgresql postgresql-server postgresql-contrib git
+sudo dnf install -y python3 python3-pip python3-virtualenv postgresql postgresql-server postgresql-contrib postgresql-devel python3-devel gcc git
 
 # Install Caddy
 sudo dnf install -y 'dnf-command(copr)'
@@ -321,13 +321,25 @@ Common issues and solutions:
    sudo -u tpdb git remote set-url origin git@github.com:username/repo.git
    ```
 
+### Installation Issues
+
+4. **"psycopg2 build error" or "pg_config not found"**:
+   ```bash
+   # Install PostgreSQL development headers
+   sudo dnf install -y postgresql-devel python3-devel gcc
+
+   # Then retry pip install
+   cd /var/www/tpdb
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install -r requirements.txt"
+   ```
+
 ### Service Issues
 
-4. **Permission denied**: Check file ownership and permissions
-5. **Database connection**: Verify PostgreSQL is running and credentials are correct
-6. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
-7. **502 Bad Gateway**: Check if gunicorn service is running
-8. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
+5. **Permission denied**: Check file ownership and permissions
+6. **Database connection**: Verify PostgreSQL is running and credentials are correct
+7. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
+8. **502 Bad Gateway**: Check if gunicorn service is running
+9. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
 
 ### Quick Fixes
 
