@@ -1,5 +1,9 @@
 import os
+from dotenv import load_dotenv
 from .settings import *
+
+# Load environment variables from .env file
+load_dotenv()
 
 DEBUG = False
 

@@ -47,6 +47,18 @@ ALTER ROLE tpdb_user SET default_transaction_isolation TO 'read committed';
 ALTER ROLE tpdb_user SET timezone TO 'UTC';
 GRANT ALL PRIVILEGES ON DATABASE tpdb_db TO tpdb_user;
 \q
+
+# Configure PostgreSQL authentication
+sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/" /var/lib/pgsql/data/postgresql.conf
+
+# Update pg_hba.conf to use md5 authentication
+sudo cp /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf.backup
+sudo sed -i 's/local   all             all                                     peer/local   all             all                                     md5/' /var/lib/pgsql/data/pg_hba.conf
+sudo sed -i 's/host    all             all             127.0.0.1\/32            ident/host    all             all             127.0.0.1\/32            md5/' /var/lib/pgsql/data/pg_hba.conf
+sudo sed -i 's/host    all             all             ::1\/128                 ident/host    all             all             ::1\/128                 md5/' /var/lib/pgsql/data/pg_hba.conf
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
 ```
 
 ### 3. Setup Git Access
@@ -375,13 +387,62 @@ Common issues and solutions:
    sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install 'psycopg[binary]'"
    ```
 
+### Database Issues
+
+7. **"Ident authentication failed" for PostgreSQL**:
+   ```bash
+   # Fix PostgreSQL authentication method
+   sudo cp /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf.backup
+
+   # Change ident/peer to md5 for password authentication
+   sudo sed -i 's/local   all             all                                     peer/local   all             all                                     md5/' /var/lib/pgsql/data/pg_hba.conf
+   sudo sed -i 's/host    all             all             127.0.0.1\/32            ident/host    all             all             127.0.0.1\/32            md5/' /var/lib/pgsql/data/pg_hba.conf
+   sudo sed -i 's/host    all             all             ::1\/128                 ident/host    all             all             ::1\/128                 md5/' /var/lib/pgsql/data/pg_hba.conf
+
+   # Restart PostgreSQL
+   sudo systemctl restart postgresql
+
+   # Test connection
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && python manage.py dbshell --settings=myproject.production_settings"
+   ```
+
+8. **Reset/recreate database completely**:
+   ```bash
+   # Stop services first
+   sudo systemctl stop tpdb
+
+   # Connect to PostgreSQL as superuser
+   sudo -u postgres psql
+
+   # Drop and recreate database and user
+   DROP DATABASE IF EXISTS tpdb_db;
+   DROP USER IF EXISTS tpdb_user;
+   CREATE DATABASE tpdb_db;
+   CREATE USER tpdb_user WITH PASSWORD 'your-new-password';
+   ALTER ROLE tpdb_user SET client_encoding TO 'utf8';
+   ALTER ROLE tpdb_user SET default_transaction_isolation TO 'read committed';
+   ALTER ROLE tpdb_user SET timezone TO 'UTC';
+   GRANT ALL PRIVILEGES ON DATABASE tpdb_db TO tpdb_user;
+   \q
+
+   # Update .env file with new password
+   sudo -u tpdb nano /var/www/tpdb/.env
+
+   # Run migrations
+   cd /var/www/tpdb
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && python manage.py migrate --settings=myproject.production_settings"
+
+   # Restart services
+   sudo systemctl start tpdb
+   ```
+
 ### Service Issues
 
-7. **Permission denied**: Check file ownership and permissions
-8. **Database connection**: Verify PostgreSQL is running and credentials are correct
-9. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
-10. **502 Bad Gateway**: Check if gunicorn service is running
-11. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
+9. **Permission denied**: Check file ownership and permissions
+10. **Database connection**: Verify PostgreSQL is running and credentials are correct
+11. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
+12. **502 Bad Gateway**: Check if gunicorn service is running
+13. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
 
 ### Quick Fixes
 
