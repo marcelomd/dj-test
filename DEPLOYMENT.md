@@ -99,6 +99,10 @@ sudo -u tpdb chmod 700 /var/www/tpdb/.ssh
 # Switch to project directory
 cd /var/www/tpdb
 
+# If directory is not empty, remove contents first
+sudo rm -rf /var/www/tpdb/*
+sudo rm -rf /var/www/tpdb/.*  2>/dev/null || true  # Remove hidden files, ignore errors
+
 # Clone your repository (choose one method)
 # SSH method:
 sudo -u tpdb git clone git@github.com:yourusername/yourrepo.git .
@@ -108,6 +112,12 @@ sudo -u tpdb git clone https://github.com/yourusername/yourrepo.git .
 
 # OR HTTPS with token (private repos):
 sudo -u tpdb git clone https://your-token@github.com/yourusername/yourrepo.git .
+
+# Alternative: Clone to a temporary directory and move contents
+# sudo -u tpdb git clone https://github.com/yourusername/yourrepo.git /tmp/tpdb-repo
+# sudo -u tpdb cp -r /tmp/tpdb-repo/* /var/www/tpdb/
+# sudo -u tpdb cp -r /tmp/tpdb-repo/.* /var/www/tpdb/ 2>/dev/null || true
+# sudo rm -rf /tmp/tpdb-repo
 
 # Create virtual environment
 sudo -u tpdb python3 -m venv venv
@@ -305,12 +315,27 @@ Common issues and solutions:
    sudo -u tpdb git clone https://your-token@github.com/username/repo.git .
    ```
 
-2. **"Repository not found" error**:
+2. **"destination path '.' already exists and is not an empty directory"**:
+   ```bash
+   # Option 1: Clear the directory and clone
+   cd /var/www/tpdb
+   sudo rm -rf /var/www/tpdb/*
+   sudo rm -rf /var/www/tpdb/.*  2>/dev/null || true
+   sudo -u tpdb git clone https://github.com/username/repo.git .
+
+   # Option 2: Clone to temp directory and move
+   sudo -u tpdb git clone https://github.com/username/repo.git /tmp/tpdb-repo
+   sudo -u tpdb cp -r /tmp/tpdb-repo/* /var/www/tpdb/
+   sudo -u tpdb cp -r /tmp/tpdb-repo/.git /var/www/tpdb/
+   sudo rm -rf /tmp/tpdb-repo
+   ```
+
+3. **"Repository not found" error**:
    - Check repository URL is correct
    - For private repos, ensure SSH key or token has access
    - Use HTTPS for public repos: `https://github.com/username/repo.git`
 
-3. **Git pull fails in deployment**:
+4. **Git pull fails in deployment**:
    ```bash
    # Check git configuration for tpdb user
    sudo -u tpdb git config --global user.email "tpdb@your-domain.com"
@@ -323,7 +348,7 @@ Common issues and solutions:
 
 ### Installation Issues
 
-4. **"psycopg2 build error" or "pg_config not found"**:
+5. **"psycopg2 build error" or "pg_config not found"**:
    ```bash
    # Install PostgreSQL development headers
    sudo dnf install -y postgresql-devel python3-devel gcc
@@ -333,13 +358,30 @@ Common issues and solutions:
    sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install -r requirements.txt"
    ```
 
+6. **"_PyInterpreterState_Get" compilation error with psycopg2**:
+   ```bash
+   # This is a Python version compatibility issue. Try these solutions:
+
+   # Option 1: Use newer psycopg2-binary version
+   cd /var/www/tpdb
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install psycopg2-binary==2.9.9"
+
+   # Option 2: Use system package instead
+   sudo dnf install -y python3-psycopg2
+   # Then install other requirements without psycopg2
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install Django==5.2.5 gunicorn==21.2.0 python-dotenv==1.0.0"
+
+   # Option 3: Use psycopg (psycopg3) instead
+   sudo -u tpdb /bin/bash -c "source venv/bin/activate && pip install 'psycopg[binary]'"
+   ```
+
 ### Service Issues
 
-5. **Permission denied**: Check file ownership and permissions
-6. **Database connection**: Verify PostgreSQL is running and credentials are correct
-7. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
-8. **502 Bad Gateway**: Check if gunicorn service is running
-9. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
+7. **Permission denied**: Check file ownership and permissions
+8. **Database connection**: Verify PostgreSQL is running and credentials are correct
+9. **Static files not loading**: Run `collectstatic` and check Caddyfile configuration
+10. **502 Bad Gateway**: Check if gunicorn service is running
+11. **SSL issues**: Caddy handles SSL automatically, ensure domain DNS points to your VPS
 
 ### Quick Fixes
 
