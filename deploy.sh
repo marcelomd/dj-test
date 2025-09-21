@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Deploy script for Django project on VPS
+set -x
 set -e  # Exit on any error
 
 PROJECT_DIR="/var/www/tpdb"
@@ -135,15 +136,15 @@ fi
 
 # Restart services
 log "Restarting services..."
-sudo systemctl restart tpdb
+sudo /bin/systemctl restart tpdb
 
 # Wait for service to start
 sleep 5
 
 # Check if services are running
-if ! sudo systemctl is-active --quiet tpdb; then
+if ! sudo /bin/systemctl is-active --quiet tpdb; then
     log "ERROR: tpdb service failed to start"
-    sudo systemctl status tpdb
+    sudo /bin/systemctl status tpdb
     exit 1
 fi
 
@@ -159,20 +160,20 @@ fi
 
 # Restart Caddy
 log "Restarting Caddy..."
-sudo systemctl restart caddy
+sudo /bin/systemctl restart caddy
 
 # Wait for Caddy to start
 sleep 3
 
-if ! sudo systemctl is-active --quiet caddy; then
+if ! sudo /bin/systemctl is-active --quiet caddy; then
     log "ERROR: Caddy service failed to start"
-    sudo systemctl status caddy
+    sudo /bin/systemctl status caddy
     exit 1
 fi
 
-# Clean up old backups (keep last 5)
+# Clean up old backups (keep last 5) - tpdb owns backup dir, no sudo needed
 log "Cleaning up old backups..."
-sudo find $BACKUP_DIR -maxdepth 1 -type d -name "backup_*" | sort -r | tail -n +6 | sudo xargs rm -rf
+find $BACKUP_DIR -maxdepth 1 -type d -name "backup_*" | sort -r | tail -n +6 | xargs rm -rf
 
 log "Deployment completed successfully at $(date)"
 log "Application is running on: https://tpsdatabase.com.br"

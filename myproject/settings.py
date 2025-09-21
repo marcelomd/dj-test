@@ -161,25 +161,46 @@ print(DATABASES)
 STATIC_ROOT = "/var/www/tpdb/static/"
 MEDIA_ROOT = "/var/www/tpdb/media/"
 
-# Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "file": {
-            "level": "INFO",
-            "class": "logging.FileHandler",
-            "filename": "/var/log/tpdb/django.log",
+# Logging - only use file logging if the directory exists
+import os
+if os.path.exists("/var/log/tpdb/"):
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "file": {
+                "level": "INFO",
+                "class": "logging.FileHandler",
+                "filename": "/var/log/tpdb/django.log",
+            },
         },
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["file"],
-            "level": "INFO",
-            "propagate": True,
+        "loggers": {
+            "django": {
+                "handlers": ["file"],
+                "level": "INFO",
+                "propagate": True,
+            },
         },
-    },
-}
+    }
+else:
+    # Use console logging for CI/development
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "level": "INFO",
+                "class": "logging.StreamHandler",
+            },
+        },
+        "loggers": {
+            "django": {
+                "handlers": ["console"],
+                "level": "INFO",
+                "propagate": True,
+            },
+        },
+    }
 
 # Use environment variable for secret key
 SECRET_KEY = os.environ.get("SECRET_KEY")
