@@ -3,25 +3,40 @@ name: Deploy to VPS
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PYTHON_VERSION: '3.11'
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+
+    - name: Run Django checks
+      run: |
+        python manage.py check --deploy
 
     - name: Run tests
       run: |
@@ -30,23 +45,103 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create deployment status
+      uses: actions/github-script@v7
+      id: deployment
+      with:
+        script: |
+          const deployment = await github.rest.repos.createDeployment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            environment: 'production',
+            description: 'Deploy to VPS'
+          });
+          return deployment.data.id;
 
     - name: Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.0
+      uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.VPS_HOST }}
         username: ${{ secrets.VPS_USERNAME }}
         key: ${{ secrets.VPS_SSH_KEY }}
+        port: ${{ secrets.VPS_PORT || 22 }}
+        timeout: 300s
+        command_timeout: 60s
+        script_stop: true
         script: |
+          set -e
+          echo "Starting deployment at $(date)"
+
+          # Check if deployment script exists
+          if [ ! -f /var/www/tpdb/deploy.sh ]; then
+            echo "Error: deploy.sh not found"
+            exit 1
+          fi
+
+          # Make deploy script executable
+          chmod +x /var/www/tpdb/deploy.sh
+
+          # Run deployment script directly as tpdb user
           cd /var/www/tpdb
-          git pull origin main
-          source venv/bin/activate
-          pip install -r requirements.txt
-          python manage.py collectstatic --noinput
-          python manage.py migrate
-          sudo systemctl restart tpdb
-          sudo systemctl restart caddy
+          ./deploy.sh
+
+          # Verify services are running
+          if ! systemctl is-active --quiet tpdb; then
+            echo "Error: tpdb service failed to start"
+            systemctl status tpdb
+            exit 1
+          fi
+
+          if ! systemctl is-active --quiet caddy; then
+            echo "Error: caddy service failed to start"
+            systemctl status caddy
+            exit 1
+          fi
+
+          echo "Deployment completed successfully at $(date)"
+
+    - name: Update deployment status (success)
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: ${{ steps.deployment.outputs.result }},
+            state: 'success',
+            description: 'Deployment successful'
+          });
+
+    - name: Update deployment status (failure)
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: ${{ steps.deployment.outputs.result }},
+            state: 'failure',
+            description: 'Deployment failed'
+          });
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Deployment Failed',
+            body: `Deployment to production failed.\n\n**Commit:** ${context.sha}\n**Workflow:** ${context.workflow}\n**Run:** ${context.runNumber}\n\nPlease check the workflow logs for details.`,
+            labels: ['deployment', 'bug']
+          });
