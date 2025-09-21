@@ -46,6 +46,15 @@ ALTER ROLE tpdb_user SET client_encoding TO 'utf8';
 ALTER ROLE tpdb_user SET default_transaction_isolation TO 'read committed';
 ALTER ROLE tpdb_user SET timezone TO 'UTC';
 GRANT ALL PRIVILEGES ON DATABASE tpdb_db TO tpdb_user;
+
+# Grant schema permissions
+\c tpdb_db
+GRANT ALL ON SCHEMA public TO tpdb_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO tpdb_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO tpdb_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO tpdb_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO tpdb_user;
+
 \q
 
 # Configure PostgreSQL authentication
