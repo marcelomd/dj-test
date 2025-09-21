@@ -7,7 +7,7 @@ User=tpdb
 Group=caddy
 WorkingDirectory=/var/www/tpdb
 Environment="PATH=/var/www/tpdb/venv/bin"
-Environment="DJANGO_SETTINGS_MODULE=settings"
+Environment="DJANGO_SETTINGS_MODULE=myproject.settings"
 EnvironmentFile=/var/www/tpdb/.env
 ExecStart=/var/www/tpdb/venv/bin/gunicorn --workers 3 --bind unix:/var/www/tpdb/tpdb.sock myproject.wsgi:application
 Restart=always

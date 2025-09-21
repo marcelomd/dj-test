@@ -1,4 +1,4 @@
-your-domain.com, www.your-domain.com {
+tpsdatabase.com.br {
     # Automatic HTTPS
 
     # Serve static files
@@ -25,8 +25,6 @@ your-domain.com, www.your-domain.com {
         reverse_proxy unix//var/www/tpdb/tpdb.sock {
             header_up Host {host}
             header_up X-Real-IP {remote}
-            header_up X-Forwarded-For {remote}
-            header_up X-Forwarded-Proto {scheme}
         }
     }
 
@@ -56,9 +54,10 @@ your-domain.com, www.your-domain.com {
 
     # Logging
     log {
-        output file /var/log/caddy/access.log
+        output file /var/log/tpdb/access.log
         format json
     }
+
 
     # Error handling
     handle_errors {

@@ -11,10 +11,10 @@ This guide explains how to deploy your Django project to a Fedora VPS using Cadd
 sudo dnf update -y
 
 # Install required packages
-sudo dnf install -y python3-pip python3-virtualenv postgresql17 postgresql17-server postgresql17-contrib postgresql17-devel postgresql17-server-devel python3-devel gcc git
+sudo dnf install -y python3-pip python3-virtualenv postgresql17 postgresql17-server postgresql17-contrib postgresql17-devel postgresql17-server-devel python3-devel gcc git caddy
 
-# Install Caddy
-sudo dnf install -y caddy
+sudo systemctl enable caddy
+sudo systemctl start caddy
 
 # Initialize PostgreSQL database
 sudo postgresql-setup --initdb
@@ -142,6 +142,8 @@ sudo -u tpdb nano .env  # Edit with your values
 # Create log directory
 sudo mkdir -p /var/log/tpdb
 sudo chown tpdb:caddy /var/log/tpdb
+sudo chmod 775 /var/log/tpdb
+
 
 # Create static and media directories
 sudo mkdir -p /var/www/tpdb/static /var/www/tpdb/media
