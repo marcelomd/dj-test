@@ -11,11 +11,9 @@ This guide explains how to deploy your Django project to a Fedora VPS using Cadd
 sudo dnf update -y
 
 # Install required packages
-sudo dnf install -y python3 python3-pip python3-virtualenv postgresql postgresql-server postgresql-contrib postgresql-devel python3-devel gcc git
+sudo dnf install -y python3-pip python3-virtualenv postgresql17 postgresql17-server postgresql17-contrib postgresql17-devel postgresql17-server-devel python3-devel gcc git
 
 # Install Caddy
-sudo dnf install -y 'dnf-command(copr)'
-sudo dnf copr enable @caddy/caddy -y
 sudo dnf install -y caddy
 
 # Initialize PostgreSQL database
@@ -46,15 +44,7 @@ ALTER ROLE tpdb_user SET client_encoding TO 'utf8';
 ALTER ROLE tpdb_user SET default_transaction_isolation TO 'read committed';
 ALTER ROLE tpdb_user SET timezone TO 'UTC';
 GRANT ALL PRIVILEGES ON DATABASE tpdb_db TO tpdb_user;
-
-# Grant schema permissions
-\c tpdb_db
-GRANT ALL ON SCHEMA public TO tpdb_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO tpdb_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO tpdb_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO tpdb_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO tpdb_user;
-
+ALTER DATABASE tpdb_db OWNER TO tpdb_user;
 \q
 
 # Configure PostgreSQL authentication
@@ -62,7 +52,6 @@ sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/" 
 
 # Update pg_hba.conf to use md5 authentication
 sudo cp /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf.backup
-sudo sed -i 's/local   all             all                                     peer/local   all             all                                     md5/' /var/lib/pgsql/data/pg_hba.conf
 sudo sed -i 's/host    all             all             127.0.0.1\/32            ident/host    all             all             127.0.0.1\/32            md5/' /var/lib/pgsql/data/pg_hba.conf
 sudo sed -i 's/host    all             all             ::1\/128                 ident/host    all             all             ::1\/128                 md5/' /var/lib/pgsql/data/pg_hba.conf
 

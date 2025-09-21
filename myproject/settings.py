@@ -156,7 +156,7 @@ DATABASES = {
         "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
-
+print(DATABASES)
 # Static files
 STATIC_ROOT = "/var/www/tpdb/static/"
 MEDIA_ROOT = "/var/www/tpdb/media/"
